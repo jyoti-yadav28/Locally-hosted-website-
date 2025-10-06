@@ -1,19 +1,18 @@
 name: LambdaTest Local Website CI/CD
 
-# Trigger on push to main branch or every 5 minutes
 on:
   push:
     branches:
       - main
   schedule:
-    - cron: '*/5 * * * *'   # Runs every 5 minutes
+    - cron: '*/5 * * * *'   # Every 5 minutes
 
 jobs:
   lambdatest-tests:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout code
       - name: Checkout Repository
         uses: actions/checkout@v3
 
@@ -29,20 +28,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install selenium
 
-      # 4. Start local HTTP server for your website
+      # 4. Start local server for your website (adjust folder if needed)
       - name: Start Local Server
         run: |
+          cd ./   # Change to the folder where index.html is
           python -m http.server 5500 &
           sleep 5  # Give server time to start
 
-      # 5. Download and start LambdaTest Tunnel
+      # 5. Start LambdaTest Tunnel
       - name: Start LambdaTest Tunnel
         run: |
           wget https://downloads.lambdatest.com/tunnel/v4.0.382/LT_V4.zip -O LT_V4.zip
           unzip LT_V4.zip -d LT_Tunnel
           chmod +x LT_Tunnel/LT
           LT_Tunnel/LT --user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --tunnel-name LambdaTunnel
-          sleep 10  # Wait for tunnel to initialize
+          sleep 10  # Wait for tunnel initialization
 
       # 6. Run Selenium tests
       - name: Run Selenium Tests

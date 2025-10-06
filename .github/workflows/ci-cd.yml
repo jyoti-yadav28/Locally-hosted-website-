@@ -5,49 +5,75 @@ on:
     branches:
       - main
   schedule:
-    - cron: '*/5 * * * *'   # Every 5 minutes
+    - cron: '*/5 * * * *' # Runs every 5 minutes
 
 jobs:
   lambdatest-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # Set a timeout for the entire job
 
     steps:
       # 1. Checkout code
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 2. Setup Python
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3. Install Selenium
-      - name: Install Selenium
+      # 3. Install Dependencies (Selenium)
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install selenium
 
-      # 4. Start local server for your website (adjust folder if needed)
+      # 4. Start local server
       - name: Start Local Server
+        # Starts a simple web server in the background (&)
         run: |
-          cd ./   # Change to the folder where index.html is
           python -m http.server 5500 &
-          sleep 5  # Give server time to start
+          echo "Local server started on port 5500."
+          sleep 5
 
-      # 5. Start LambdaTest Tunnel
+      # 5. Start LambdaTest Tunnel (CRITICAL STEP)
       - name: Start LambdaTest Tunnel
+        id: start_tunnel # Add ID for referencing PID file path
         run: |
+          # 5a. Download and setup the tunnel executable
           wget https://downloads.lambdatest.com/tunnel/v4.0.382/LT_V4.zip -O LT_V4.zip
           unzip LT_V4.zip -d LT_Tunnel
           chmod +x LT_Tunnel/LT
-          LT_Tunnel/LT --user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --tunnel-name LambdaTunnel
-          sleep 10  # Wait for tunnel initialization
+          
+          # 5b. Start the tunnel in the background (--daemon)
+          # Use CORRECTED secret names and add a PID file flag for reliable checks
+          ./LT_Tunnel/LT \
+            --user ${{ secrets.jyotiyadav }} \
+            --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} \
+            --daemon \
+            --tunnel-name LambdaTunnel \
+            --pid-file LT_Tunnel/lt_tunnel.pid
+          
+          # 5c. Wait for tunnel connection (checks for the PID file)
+          echo "Waiting for tunnel connection to stabilize..."
+          for i in $(seq 1 15); do 
+            if [ -f LT_Tunnel/lt_tunnel.pid ]; then
+              echo "LambdaTest Tunnel connected and ready (PID file found)."
+              break
+            fi
+            sleep 1
+            if [ $i -eq 15 ]; then
+              echo "Error: LambdaTest Tunnel failed to connect after 15 seconds."
+              exit 1 # Fail the step if tunnel doesn't start
+            fi
+          done
 
       # 6. Run Selenium tests
       - name: Run Selenium Tests
         run: python tunnel.py
 
-      # 7. Stop LambdaTest Tunnel
+      # 7. Stop LambdaTest Tunnel (Ensure this runs even if tests fail)
       - name: Stop LambdaTest Tunnel
+        if: always() # IMPORTANT: Runs even if previous steps fail
         run: pkill -f LT

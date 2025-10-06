@@ -50,12 +50,12 @@ jobs:
           # 5b. Start the tunnel in background with verbose logging
           # 🚨 FIX 2: CREDENTIALS EMBEDDED DIRECTLY
           & $TUNNEL_EXEC `
-            --user 'jyotiyadav' `  # <-- REPLACE THIS VALUE
-            --key 'LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe' `     
-            --daemon `
-            --verbose `
-            --tunnel-name LambdaTunnel `
-            --pid-file $PID_FILE 
+            -user 'jyotiyadav' `  # <-- REPLACE THIS VALUE
+            -key 'LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe' `     
+            -daemon `
+            -verbose `
+            -tunnel-name LambdaTunnel `
+            -pid-file $PID_FILE 
           
           # 5c. Wait for the tunnel connection to confirm stability (PowerShell loop)
           echo "Waiting for tunnel connection (max 20s)..."

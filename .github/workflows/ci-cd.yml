@@ -48,10 +48,11 @@ jobs:
           Expand-Archive -Path LT_V4.zip -DestinationPath LT_Tunnel -Force
           
           # 5b. Start the tunnel in background with verbose logging
-          # FIX: Use the Stop-Parsing Symbol (--) to correctly pass arguments
+          # FIX 1: Remove the space before the backtick on the --key line.
+          # FIX 2: Ensure all flags use double hyphens.
           & $TUNNEL_EXEC -- `
             --user 'jyotiyadav' `
-            --key 'LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe' ` 
+            --key 'LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe'` 
             --daemon `
             --verbose `
             --tunnel-name LambdaTunnel `

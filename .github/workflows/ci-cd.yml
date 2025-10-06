@@ -42,7 +42,7 @@ jobs:
           PID_FILE="LT_Tunnel/lt_tunnel.pid"
 
           # 5a. Download and setup the tunnel executable
-          wget https://downloads.lambdatest.com/tunnel/v4.0.382/LT_V4.zip -O LT_V4.zip
+          wget https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip -O LT_V4.zip
           unzip LT_V4.zip -d LT_Tunnel
           chmod +x $TUNNEL_EXEC
           

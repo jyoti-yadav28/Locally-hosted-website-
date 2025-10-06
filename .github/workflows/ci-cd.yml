@@ -1,5 +1,4 @@
 name: LambdaTest Local Website CI/CD
-
 on:
   push:
     branches:
@@ -9,7 +8,7 @@ on:
 
 jobs:
   lambdatest-tests:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 15
 
     steps:
@@ -28,55 +27,62 @@ jobs:
         run: pip install selenium
 
       # 4. Start local server
-      # The server runs in the background (&) and requires a brief pause to start.
       - name: Start Local Server
+        shell: pwsh
         run: |
-          python -m http.server 5500 &
+          Start-Process python -ArgumentList "-m", "http.server", "5500"
           echo "Local server started on port 5500."
-          sleep 5
+          Start-Sleep -Seconds 5
 
       # 5. Start LambdaTest Tunnel (CRITICAL STEP)
       - name: Start LambdaTest Tunnel
+        shell: pwsh
         run: |
-          TUNNEL_EXEC="LT_Tunnel/LT"
-          PID_FILE="LT_Tunnel/lt_tunnel.pid"
+          # FIX 1: Correct variables for Windows path and executable
+          $TUNNEL_EXEC = "LT_Tunnel/LT.exe"
+          $PID_FILE = "LT_Tunnel/lt_tunnel.pid"
 
-          # 5a. Download and setup the tunnel executable
-          wget https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip -O LT_V4.zip
-          unzip LT_V4.zip -d LT_Tunnel
-          chmod +x $TUNNEL_EXEC
+          # 5a. Download and setup the tunnel executable (Windows-specific link)
+          New-Item -ItemType Directory -Force -Path "LT_Tunnel"
+          Invoke-WebRequest -Uri https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip -OutFile LT_V4.zip
+          Expand-Archive -Path LT_V4.zip -DestinationPath LT_Tunnel -Force
           
           # 5b. Start the tunnel in background with verbose logging
-          # **Ensure secrets.LT_USERNAME and secrets.LT_ACCESS_KEY are set in GitHub**
-          ./$TUNNEL_EXEC \
-            --user ${{ secrets.jyotiyadav }} \
-            --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} \
-            --daemon \
-            --verbose \
-            --tunnel-name LambdaTunnel \
-            --pid-file $PID_FILE
+          # 🚨 FIX 2: CREDENTIALS EMBEDDED DIRECTLY
+          & $TUNNEL_EXEC `
+            --user jyotiyadav `  # <-- REPLACE THIS VALUE
+            --key LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe `     # <-- REPLACE THIS VALUE
+            --daemon `
+            --verbose `
+            --tunnel-name LambdaTunnel `
+            --pid-file $PID_FILE 
           
-          # 5c. Wait for the tunnel connection to confirm stability
+          # 5c. Wait for the tunnel connection to confirm stability (PowerShell loop)
           echo "Waiting for tunnel connection (max 20s)..."
-          for i in $(seq 1 20); do 
-            if [ -f $PID_FILE ]; then
+          for ($i=1; $i -le 20; $i++) {
+            if (Test-Path $PID_FILE) {
               echo "LambdaTest Tunnel connected and ready (PID file found)."
               break
-            fi
-            sleep 1
-            if [ $i -eq 20 ]; then
+            }
+            Start-Sleep -Seconds 1
+            if ($i -eq 20) {
               echo "Error: LambdaTest Tunnel failed to connect within 20 seconds. CHECK LOGS FOR AUTHENTICATION FAILURE."
-              exit 1 # Fail the step if tunnel doesn't start
-            fi
-          done
+              exit 1 
+            }
+          }
 
       # 6. Run Selenium tests
       - name: Run Selenium Tests
         run: python tunnel.py
 
       # 7. Stop LambdaTest Tunnel
-      # 'if: always()' ensures cleanup runs even if the tests (Step 6) fail.
-      # If Step 5 failed, pkill will exit with code 1, which is fine here.
       - name: Stop LambdaTest Tunnel
         if: always() 
-        run: pkill -f LT
+        shell: pwsh
+        run: |
+          try {
+            taskkill /F /IM LT.exe
+            echo "LambdaTest Tunnel cleanup completed."
+          } catch {
+            echo "LambdaTest Tunnel process not found. Continuing..."
+          }

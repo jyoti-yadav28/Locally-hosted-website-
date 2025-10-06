@@ -1,0 +1,48 @@
+name: LambdaTest Tunnel CI/CD
+
+# Trigger on push to main branch or every 5 minutes
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '*/5 * * * *'   # Runs every 5 minutes
+
+jobs:
+  lambdatest-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Install dependencies
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Selenium
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium
+
+      # 3. Download and start LambdaTest Tunnel
+      - name: Start LambdaTest Tunnel
+        run: |
+          wget https://downloads.lambdatest.com/tunnel/v4.0.382/LT_V4.zip -O LT_V4.zip
+          unzip LT_V4.zip -d LT_Tunnel
+          chmod +x LT_Tunnel/LT
+          LT_Tunnel/LT --user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon
+          sleep 10   # wait for tunnel to start
+
+      # 4. Run your Selenium tests
+      - name: Run Selenium Tests
+        run: |
+          python tunnel.py
+
+      # 5. Stop LambdaTest Tunnel
+      - name: Stop LambdaTest Tunnel
+        run: |
+          pkill -f LT

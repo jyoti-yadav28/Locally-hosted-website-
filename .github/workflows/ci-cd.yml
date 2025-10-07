@@ -52,7 +52,8 @@ jobs:
           Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
 
           # Start tunnel in background
-          $args = "--user ${{ secrets.LT_USERNAME }} --key ${{ secrets.LT_ACCESS_KEY }} --daemon --verbose --tunnel-name github-actions-tunnel --pid-file $PID_FILE --force-local"
+          $args = "--user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --verbose --tunnel-name 
+          fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE --force-local"
           Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 
@@ -74,8 +75,8 @@ jobs:
       - name: Run Selenium Tests
         run: python tunnel.py
         env:
-          LT_USERNAME: ${{ secrets.LT_USERNAME }}
-          LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+          LT_USERNAME: ${{ secrets.jyotiyadav }}
+          LT_ACCESS_KEY: ${{ secrets.fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c }}
 
       # 7. Stop LambdaTest Tunnel safely
       - name: Stop LambdaTest Tunnel

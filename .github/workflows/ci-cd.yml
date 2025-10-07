@@ -56,7 +56,7 @@ jobs:
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 
           # Wait until the tunnel is ready (PID file check)
-          $maxWait = 30
+          # $maxWait = 30
           for ($i = 1; $i -le $maxWait; $i++) {
             if (Test-Path $PID_FILE) {
               Write-Host "✅ LambdaTest Tunnel is up and running."

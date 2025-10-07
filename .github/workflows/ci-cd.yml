@@ -1,10 +1,12 @@
 name: LambdaTest Local Website CI/CD
+
 on:
   push:
     branches:
       - main
+  # Uncomment this if you also want to run every 5 minutes automatically:
   # schedule:
-  #   - cron: '*/5 * * * *' # Every 5 minutes
+  #   - cron: '*/5 * * * *'
 
 jobs:
   lambdatest-tests:
@@ -12,72 +14,73 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout repository code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Setup Python
+      # 2. Setup Python 3.11
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3. Install Dependencies (Selenium)
+      # 3. Install dependencies
       - name: Install Dependencies
         run: pip install selenium
 
-      # 4. Start local server
+      # 4. Start local server on port 5500
       - name: Start Local Server
         shell: pwsh
         run: |
           Start-Process python -ArgumentList "-m", "http.server", "5500"
-          echo "Local server started on port 5500."
+          Write-Host "✅ Local server started at http://127.0.0.1:5500"
           Start-Sleep -Seconds 5
 
-      # 5. Start LambdaTest Tunnel (CRITICAL STEP)
+      # 5. Start LambdaTest Tunnel (✅ fixed for Windows)
       - name: Start LambdaTest Tunnel
         shell: pwsh
         run: |
-          # FIX 1: Correct variables for Windows path and executable
-          $TUNNEL_EXEC = "LT_Tunnel/LT.exe"
-          $PID_FILE = "LT_Tunnel/lt_tunnel.pid"
+          $TUNNEL_DIR = "LT_Tunnel"
+          $TUNNEL_ZIP = "LT_Windows.zip"
+          $TUNNEL_EXEC = "$TUNNEL_DIR/LT.exe"
+          $PID_FILE = "$TUNNEL_DIR/lt_tunnel.pid"
 
-          # 5a. Download and setup the tunnel executable (Windows-specific link)
-          New-Item -ItemType Directory -Force -Path "LT_Tunnel"
-          Invoke-WebRequest -Uri https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip -OutFile LT_V4.zip
-          Expand-Archive -Path LT_V4.zip -DestinationPath LT_Tunnel -Force
-          
-          # 5b. Start the tunnel in background with verbose logging
-          # 🚨 FIX: ENTIRE EXECUTION COMMAND IS NOW ON A SINGLE LINE. 
-          # This resolves the 'Missing expression after unary operator --' error.
-          & $TUNNEL_EXEC -- --user 'jyotiyadav' --key 'LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe' --daemon --verbose --tunnel-name LambdaTunnel --pid-file $PID_FILE
-          
-          # 5c. Wait for the tunnel connection to confirm stability (PowerShell loop)
-          echo "Waiting for tunnel connection (max 20s)..."
-          for ($i=1; $i -le 20; $i++) {
+          # Download and unzip tunnel binary
+          New-Item -ItemType Directory -Force -Path $TUNNEL_DIR | Out-Null
+          Invoke-WebRequest -Uri "https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip" -OutFile $TUNNEL_ZIP
+          Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
+
+          # Start the tunnel using Start-Process to avoid PowerShell parsing issues
+          $args = "--user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --verbose --tunnel-name fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE"
+          Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
+          Write-Host "⏳ Starting LambdaTest Tunnel..."
+
+          # Wait until the tunnel is ready (PID file check)
+          $maxWait = 30
+          for ($i = 1; $i -le $maxWait; $i++) {
             if (Test-Path $PID_FILE) {
-              echo "LambdaTest Tunnel connected and ready (PID file found)."
+              Write-Host "✅ LambdaTest Tunnel is up and running."
               break
             }
             Start-Sleep -Seconds 1
-            if ($i -eq 20) {
-              echo "Error: LambdaTest Tunnel failed to connect within 20 seconds. CHECK LOGS FOR AUTHENTICATION FAILURE."
-              exit 1 
+            if ($i -eq $maxWait) {
+              Write-Host "❌ Tunnel did not start within $maxWait seconds."
+              exit 1
             }
           }
 
-      # 6. Run Selenium tests
+      # 6. Run your Selenium tests (they should target localhost)
       - name: Run Selenium Tests
         run: python tunnel.py
 
-      # 7. Stop LambdaTest Tunnel
+      # 7. Stop LambdaTest Tunnel after job
       - name: Stop LambdaTest Tunnel
-        if: always() 
+        if: always()
         shell: pwsh
         run: |
           try {
             taskkill /F /IM LT.exe
-            echo "LambdaTest Tunnel cleanup completed."
+            Write-Host "🧹 LambdaTest Tunnel stopped successfully."
           } catch {
-            echo "LambdaTest Tunnel process not found. Continuing..."
+            Write-Host "No LT.exe process found. Skipping cleanup."
           }

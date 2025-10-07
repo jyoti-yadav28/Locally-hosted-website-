@@ -4,21 +4,21 @@ on:
   push:
     branches:
       - main
-  # Uncomment this if you also want to run every 5 minutes automatically:
+  # Optional: run every 5 minutes
   # schedule:
   #   - cron: '*/5 * * * *'
 
 jobs:
   lambdatest-tests:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
-      # 1. Checkout repository code
+      # 1. Checkout code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Setup Python 3.11
+      # 2. Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -36,7 +36,7 @@ jobs:
           Write-Host "✅ Local server started at http://127.0.0.1:5500"
           Start-Sleep -Seconds 5
 
-      # 5. Start LambdaTest Tunnel (✅ fixed for Windows)
+      # 5. Start LambdaTest Tunnel
       - name: Start LambdaTest Tunnel
         shell: pwsh
         run: |
@@ -50,13 +50,13 @@ jobs:
           Invoke-WebRequest -Uri "https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip" -OutFile $TUNNEL_ZIP
           Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
 
-          # Start the tunnel using Start-Process to avoid PowerShell parsing issues
-          $args = "--user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --verbose --tunnel-name fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE"
+          # Start tunnel in background
+          $args = "--user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --verbose --tunnel-name fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE --force-local"
           Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 
-          # Wait until the tunnel is ready (PID file check)
-          # $maxWait = 30
+          # Wait until tunnel is fully ready (PID file check)
+          # $maxWait = 60
           for ($i = 1; $i -le $maxWait; $i++) {
             if (Test-Path $PID_FILE) {
               Write-Host "✅ LambdaTest Tunnel is up and running."
@@ -64,20 +64,27 @@ jobs:
             }
             Start-Sleep -Seconds 1
             if ($i -eq $maxWait) {
-              Write-Host "❌ Tunnel did not start within $maxWait seconds."
+              Write-Host "❌ Tunnel did not start within $maxWait seconds"
               exit 1
             }
           }
 
-      # 6. Run your Selenium tests (they should target localhost)
+      # 6. Run Selenium tests
       - name: Run Selenium Tests
         run: python tunnel.py
+        env:
+          LT_USERNAME: ${{ secrets.jyotiyadav }}
+          LT_ACCESS_KEY: ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }}
 
-      # 7. Stop LambdaTest Tunnel after job
+      # 7. Stop LambdaTest Tunnel safely
       - name: Stop LambdaTest Tunnel
         if: always()
         shell: pwsh
         run: |
-            taskkill /F /IM LT.exe -ErrorAction SilentlyContinue
-            Write-Host "🧹 LambdaTest Tunnel stopped (if it was running)."
-
+          $process = Get-Process LT -ErrorAction SilentlyContinue
+          if ($process) {
+              Stop-Process -Name LT -Force
+              Write-Host "🧹 LambdaTest Tunnel stopped successfully."
+          } else {
+              Write-Host "No LT.exe process found. Nothing to stop."
+          }

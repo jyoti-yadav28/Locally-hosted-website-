@@ -14,7 +14,7 @@ lt_options = {
     "browserVersion": "latest",
     "platformName": "Windows 11",
     "tunnel": True,
-    "tunnelName": "LambdaTunnel",  # Must match your tunnel
+    "tunnelName": "fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c",  # Must match your tunnel
     "build": "locally tunnel",
     "name": "Localhost Site Test",
 }

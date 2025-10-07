@@ -4,17 +4,17 @@ on:
   push:
     branches:
       - main
-  # Optional: run every 5 minutes
-  # schedule:
-  #   - cron: '*/5 * * * *'
+  workflow_dispatch:  # Optional manual trigger
+  schedule:
+    - cron: '*/5 * * * *'  # Optional: run every 5 minutes
 
 jobs:
   lambdatest-tests:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -26,15 +26,16 @@ jobs:
 
       # 3. Install dependencies
       - name: Install Dependencies
-        run: pip install selenium
+        run: pip install selenium pytest
 
       # 4. Start local server on port 5500
       - name: Start Local Server
         shell: pwsh
         run: |
-          Start-Process python -ArgumentList "-m", "http.server", "5500"
-          Write-Host "✅ Local server started at http://127.0.0.1:5500"
+          Write-Host "🚀 Starting local server..."
+          Start-Job -ScriptBlock { python -m http.server 5500 }
           Start-Sleep -Seconds 5
+          Write-Host "✅ Local server started at http://127.0.0.1:5500"
 
       # 5. Start LambdaTest Tunnel
       - name: Start LambdaTest Tunnel
@@ -51,12 +52,12 @@ jobs:
           Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
 
           # Start tunnel in background
-          $args = "--user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --verbose --tunnel-name fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE --force-local"
+          $args = "--user ${{ secrets.LT_USERNAME }} --key ${{ secrets.LT_ACCESS_KEY }} --daemon --verbose --tunnel-name github-actions-tunnel --pid-file $PID_FILE --force-local"
           Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 
-          # Wait until tunnel is fully ready (PID file check)
-          # $maxWait = 60
+          # Wait until tunnel PID file exists
+          $maxWait = 60
           for ($i = 1; $i -le $maxWait; $i++) {
             if (Test-Path $PID_FILE) {
               Write-Host "✅ LambdaTest Tunnel is up and running."
@@ -73,8 +74,8 @@ jobs:
       - name: Run Selenium Tests
         run: python tunnel.py
         env:
-          LT_USERNAME: ${{ secrets.jyotiyadav }}
-          LT_ACCESS_KEY: ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }}
+          LT_USERNAME: ${{ secrets.LT_USERNAME }}
+          LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
 
       # 7. Stop LambdaTest Tunnel safely
       - name: Stop LambdaTest Tunnel
@@ -88,3 +89,12 @@ jobs:
           } else {
               Write-Host "No LT.exe process found. Nothing to stop."
           }
+
+      # 8. Stop Local Server
+      - name: Stop Local Server
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "🛑 Stopping local server..."
+          Get-Job | Stop-Job
+          Write-Host "✅ Local server stopped."

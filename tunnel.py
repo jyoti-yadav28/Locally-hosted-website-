@@ -1,12 +1,15 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
-# LambdaTest credentials
-USERNAME = "jyotiyadav"
-ACCESS_KEY = "LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe"
+import os
+import requests
+
+# Get LambdaTest credentials from environment variables
+USERNAME = os.getenv("LT_USERNAME")
+ACCESS_KEY = os.getenv("LT_ACCESS_KEY")
 
 # LambdaTest Grid URL
-grid_url = f"https://jyotiyadav:LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe@hub.lambdatest.com/wd/hub"
+grid_url = f"https://{USERNAME}:{ACCESS_KEY}@hub.lambdatest.com/wd/hub"
 
 # Desired capabilities inside LT:Options
 lt_options = {
@@ -14,14 +17,28 @@ lt_options = {
     "browserVersion": "latest",
     "platformName": "Windows 11",
     "tunnel": True,
-    "tunnelName": "6f849d94-abb2-4db3-b770-5c6d2c7e8e34",  # Must match your tunnel
-    "build": "locally tunnel",
+    "tunnelName": "auto-tunnel",  # Must match your GitHub Actions tunnel name
+    "build": "Locally Hosted Tunnel",
     "name": "Localhost Site Test",
 }
 
 # Create ChromeOptions and set LambdaTest options
 options = webdriver.ChromeOptions()
 options.set_capability("LT:Options", lt_options)
+
+# Wait until the local server is up
+local_url = "http://127.0.0.1:5500/index.html"
+for i in range(10):
+    try:
+        requests.get(local_url)
+        print("✅ Local server is ready!")
+        break
+    except requests.exceptions.ConnectionError:
+        print("Waiting for local server to start...")
+        time.sleep(2)
+else:
+    print("❌ Local server did not start in time.")
+    exit(1)
 
 # Initialize Remote WebDriver
 driver = webdriver.Remote(
@@ -30,8 +47,8 @@ driver = webdriver.Remote(
 )
 
 try:
-    # Open local website (served via localhost or 127.0.0.1)
-    driver.get("http://127.0.0.1:5500/index.html")
+    # Open local website
+    driver.get(local_url)
     
     # Print page title
     print("Page title:", driver.title)
@@ -40,6 +57,7 @@ try:
     heading = driver.find_element(By.TAG_NAME, "h1").text
     print("Heading text:", heading)
     
-    time.sleep(5)  # Wait to see the page
+    time.sleep(5)  # Pause to see the page
 finally:
     driver.quit()
+    print("✅ Test completed and driver closed.")

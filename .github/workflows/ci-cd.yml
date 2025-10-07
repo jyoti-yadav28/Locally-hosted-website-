@@ -11,7 +11,6 @@ on:
 jobs:
   lambdatest-tests:
     runs-on: windows-latest
-    # timeout-minutes: 30
 
     steps:
       # 1. Checkout repository
@@ -37,7 +36,7 @@ jobs:
           Start-Sleep -Seconds 5
           Write-Host "✅ Local server started at http://127.0.0.1:5500"
 
-      # 5. Start LambdaTest Tunnel
+      # 5. Start LambdaTest Tunnel (automated)
       - name: Start LambdaTest Tunnel
         shell: pwsh
         run: |
@@ -45,29 +44,29 @@ jobs:
           $TUNNEL_ZIP = "LT_Windows.zip"
           $TUNNEL_EXEC = "$TUNNEL_DIR/LT.exe"
           $PID_FILE = "$TUNNEL_DIR/lt_tunnel.pid"
+          $maxWait = 60
 
-          # Download and unzip tunnel binary
+          # Create directory and download tunnel binary
           New-Item -ItemType Directory -Force -Path $TUNNEL_DIR | Out-Null
           Invoke-WebRequest -Uri "https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip" -OutFile $TUNNEL_ZIP
           Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
 
-          # Start tunnel in background (single-line args ✅)
-          $args = "--user ${{ secrets.USERNAME }} --key ${{ secrets.ACCESS_KEY }} --daemon --verbose --tunnel-name 6f849d94-abb2-4db3-b770-5c6d2c7e8e34 --pid-file $PID_FILE --force-local"
+          # Start tunnel in background automatically
+          $args = "--user ${{ secrets.USERNAME }} --key ${{ secrets.ACCESS_KEY }} --daemon --verbose --tunnel-name auto-tunnel --pid-file $PID_FILE --force-local"
           Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 
-          # Wait until tunnel PID file exists
-          # $maxWait = 60
+          # Wait until tunnel is ready
           for ($i = 1; $i -le $maxWait; $i++) {
-            if (Test-Path $PID_FILE) {
-              Write-Host "✅ LambdaTest Tunnel is up and running."
-              break
-            }
-            Start-Sleep -Seconds 1
-            if ($i -eq $maxWait) {
-              Write-Host "❌ Tunnel did not start within $maxWait seconds"
-              exit 1
-            }
+              if (Test-Path $PID_FILE) {
+                  Write-Host "✅ LambdaTest Tunnel started automatically."
+                  break
+              }
+              Start-Sleep -Seconds 1
+              if ($i -eq $maxWait) {
+                  Write-Host "❌ Tunnel did not start in $maxWait seconds"
+                  exit 1
+              }
           }
 
       # 6. Run Selenium tests

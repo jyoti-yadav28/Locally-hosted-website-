@@ -2,11 +2,11 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
 # LambdaTest credentials
-# USERNAME = "jyotiyadav"
-# ACCESS_KEY = "LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe"
+USERNAME = "jyotiyadav"
+ACCESS_KEY = "LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe"
 
 # LambdaTest Grid URL
-grid_url = f"https://USERNAME:ACCESS_KEY@hub.lambdatest.com/wd/hub"
+grid_url = f"https://jyotiyadav:LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe@hub.lambdatest.com/wd/hub"
 
 # Desired capabilities inside LT:Options
 lt_options = {

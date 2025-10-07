@@ -5,8 +5,8 @@ on:
     branches:
       - main
   workflow_dispatch:  # Optional manual trigger
-  schedule:
-    - cron: '*/5 * * * *'  # Optional: run every 5 minutes
+  # schedule:
+  #   - cron: '*/5 * * * *'  # Optional: run every 5 minutes
 
 jobs:
   lambdatest-tests:
@@ -51,14 +51,13 @@ jobs:
           Invoke-WebRequest -Uri "https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip" -OutFile $TUNNEL_ZIP
           Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
 
-          # Start tunnel in background
-          $args = "--user ${{ secrets.jyotiyadav }} --key ${{ secrets.LT_QADsSrkYtrtgR0gOQKfoxZuVqQTm1DXlbHy0Vo9JkOzJwpe }} --daemon --verbose --tunnel-name 
-          fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE --force-local"
+          # Start tunnel in background (single-line args ✅)
+          $args = "--user ${{ secrets.USERNAME }} --key ${{ secrets.ACCESS_KEY }} --daemon --verbose --tunnel-name fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE --force-local"
           Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 
           # Wait until tunnel PID file exists
-          # $maxWait = 60
+          $maxWait = 60
           for ($i = 1; $i -le $maxWait; $i++) {
             if (Test-Path $PID_FILE) {
               Write-Host "✅ LambdaTest Tunnel is up and running."
@@ -75,8 +74,8 @@ jobs:
       - name: Run Selenium Tests
         run: python tunnel.py
         env:
-          LT_USERNAME: ${{ secrets.jyotiyadav }}
-          LT_ACCESS_KEY: ${{ secrets.fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c }}
+          LT_USERNAME: ${{ secrets.USERNAME }}
+          LT_ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
 
       # 7. Stop LambdaTest Tunnel safely
       - name: Stop LambdaTest Tunnel

@@ -78,9 +78,6 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          try {
-            taskkill /F /IM LT.exe
-            Write-Host "🧹 LambdaTest Tunnel stopped successfully."
-          } catch {
-            Write-Host "No LT.exe process found. Skipping cleanup."
-          }
+            taskkill /F /IM LT.exe -ErrorAction SilentlyContinue
+            Write-Host "🧹 LambdaTest Tunnel stopped (if it was running)."
+

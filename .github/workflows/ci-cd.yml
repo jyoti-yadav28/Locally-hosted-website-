@@ -52,7 +52,7 @@ jobs:
           Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
 
           # Start tunnel in background (single-line args ✅)
-          $args = "--user ${{ secrets.USERNAME }} --key ${{ secrets.ACCESS_KEY }} --daemon --verbose --tunnel-name fd722dc5-4ba2-43b6-85e8-77ffd3f42d0c --pid-file $PID_FILE --force-local"
+          $args = "--user ${{ secrets.USERNAME }} --key ${{ secrets.ACCESS_KEY }} --daemon --verbose --tunnel-name 6f849d94-abb2-4db3-b770-5c6d2c7e8e34 --pid-file $PID_FILE --force-local"
           Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
           Write-Host "⏳ Starting LambdaTest Tunnel..."
 

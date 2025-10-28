@@ -1,0 +1,114 @@
+pipeline {
+    agent { label 'windows' }
+
+    environment {
+        LT_USERNAME = credentials('LT_USERNAME')
+        LT_ACCESS_KEY = credentials('LT_ACCESS_KEY')
+    }
+
+    stages {
+        stage('Checkout Repository') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup Python') {
+            steps {
+                bat '''
+                echo Checking Python version...
+                python --version || (
+                    echo Installing Python 3.11...
+                    choco install python --version=3.11 -y
+                )
+                python --version
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                bat 'pip install -r requirements.txt || pip install selenium pytest'
+            }
+        }
+
+        stage('Start Local Server') {
+            steps {
+                powershell '''
+                Write-Host "🚀 Starting local server..."
+                Start-Job -ScriptBlock { python -m http.server 5500 }
+                Start-Sleep -Seconds 5
+                Write-Host "✅ Local server started at http://127.0.0.1:5500"
+                '''
+            }
+        }
+
+        stage('Start LambdaTest Tunnel') {
+            steps {
+                powershell '''
+                $TUNNEL_DIR = "LT_Tunnel"
+                $TUNNEL_ZIP = "LT_Windows.zip"
+                $TUNNEL_EXEC = "$TUNNEL_DIR/LT.exe"
+                $PID_FILE = "$TUNNEL_DIR/lt_tunnel.pid"
+                $maxWait = 60
+
+                Write-Host "⏳ Downloading LambdaTest Tunnel..."
+                New-Item -ItemType Directory -Force -Path $TUNNEL_DIR | Out-Null
+                Invoke-WebRequest -Uri "https://downloads.lambdatest.com/tunnel/v3/windows/64bit/LT_Windows.zip" -OutFile $TUNNEL_ZIP
+                Expand-Archive -Path $TUNNEL_ZIP -DestinationPath $TUNNEL_DIR -Force
+
+                Write-Host "🚀 Starting LambdaTest Tunnel..."
+                $args = "--user $env:LT_USERNAME --key $env:LT_ACCESS_KEY --daemon --verbose --tunnel-name 6f849d94-abb2-4db3-b770-5c6d2c7e8e34 --pid-file $PID_FILE --force-local"
+                Start-Process -FilePath $TUNNEL_EXEC -ArgumentList $args
+
+                for ($i = 1; $i -le $maxWait; $i++) {
+                    if (Test-Path $PID_FILE) {
+                        Write-Host "✅ LambdaTest Tunnel is up and running."
+                        break
+                    }
+                    Start-Sleep -Seconds 1
+                    if ($i -eq $maxWait) {
+                        Write-Host "❌ Tunnel did not start within $maxWait seconds"
+                        exit 1
+                    }
+                }
+                '''
+            }
+        }
+
+        stage('Run Selenium Tests') {
+            steps {
+                bat 'python tunnel.py'
+            }
+        }
+    }
+
+    post {
+        always {
+            stage('Stop LambdaTest Tunnel') {
+                steps {
+                    powershell '''
+                    Write-Host "🧹 Stopping LambdaTest Tunnel..."
+                    $process = Get-Process LT -ErrorAction SilentlyContinue
+                    if ($process) {
+                        Stop-Process -Name LT -Force
+                        Write-Host "✅ LambdaTest Tunnel stopped."
+                    } else {
+                        Write-Host "No LT.exe process found."
+                    }
+                    '''
+                }
+            }
+
+            stage('Stop Local Server') {
+                steps {
+                    powershell '''
+                    Write-Host "🛑 Stopping local server..."
+                    Get-Job | Stop-Job
+                    Write-Host "✅ Local server stopped."
+                    '''
+                }
+            }
+        }
+    }
+}
